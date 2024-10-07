@@ -1,39 +1,37 @@
 require 'httparty'
 require 'json'
+require 'dotenv/load'
 
-API_KEY = "G8ZVuIdnmShiKLE7eCidCQmQXDSYao9P9y+dnwzEDCczTSenUADgipRYO+wjaO5hgBQ046YxY7pq55Pd4vnIUw=="
+API_KEY = ENV['API_KEY']
 BASE_URL = "http://contest.elecard.ru/api"
 
-def get_tasks
+def api_request(method, params = nil)
   response = HTTParty.post(BASE_URL, body: {
     key: API_KEY,
-    method: "GetTasks",
-    params: nil
+    method: method,
+    params: params
   }.to_json, headers: { 'Content-Type' => 'application/json' })
 
   JSON.parse(response.body)
 end
 
-def calculate_bounding_box(circles)
-  min_x = circles.map { |circle| circle['x'] - circle['radius'] }.min
-  max_x = circles.map { |circle| circle['x'] + circle['radius'] }.max
-  min_y = circles.map { |circle| circle['y'] - circle['radius'] }.min
-  max_y = circles.map { |circle| circle['y'] + circle['radius'] }.max
+def get_tasks
+  api_request("GetTasks")
+end
 
+def calculate_bounding_box(circles)
+  minx = circles.map { |circle| circle['x'] - circle['radius'] }.min
+  maxx = circles.map { |circle| circle['x'] + circle['radius'] }.max
+  miny = circles.map { |circle| circle['y'] - circle['radius'] }.min
+  maxy = circles.map { |circle| circle['y'] + circle['radius'] }.max
   {
-    left_bottom: { x: min_x, y: min_y },
-    right_top: { x: max_x, y: max_y }
+    left_bottom: { x: minx, y: miny },
+    right_top: { x: maxx, y: maxy }
   }
 end
 
 def check_results(results)
-  response = HTTParty.post(BASE_URL, body: {
-    key: API_KEY,
-    method: "CheckResults",
-    params: results
-  }.to_json, headers: { 'Content-Type' => 'application/json' })
-
-  JSON.parse(response.body)
+  api_request("CheckResults", results)
 end
 
 response = get_tasks
@@ -41,12 +39,10 @@ response = get_tasks
 if response["error"]
   puts "Ошибка при получении задач: #{response["error"]["message"]}"
 else
+  
   tasks = response["result"]
-  results = []
-
-  tasks.each do |circles|
-    bounding_box = calculate_bounding_box(circles)
-    results << bounding_box
+  results = tasks.map do |circles|
+    calculate_bounding_box(circles)
   end
 
   check_response = check_results(results)
