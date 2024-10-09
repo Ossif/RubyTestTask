@@ -3,6 +3,13 @@ require 'json'
 require 'dotenv/load'
 
 API_KEY = ENV['API_KEY']
+if API_KEY.nil? || API_KEY.empty?
+  puts "Ошибка: API_KEY не установлен.
+  Пожалуйста, проверьте файл .env в корневой директории - 
+  в нем должен содержаться Ваш токен.
+  Пример: \"API_KEY = \"...Ваш_токен...\""
+  exit 1
+end
 BASE_URL = "http://contest.elecard.ru/api"
 
 def api_request(method, params = nil)
@@ -11,6 +18,11 @@ def api_request(method, params = nil)
     method: method,
     params: params
   }.to_json, headers: { 'Content-Type' => 'application/json' })
+
+  if response.code != 200
+    puts "Ошибка при подключении к API: #{response.code} - #{response.message}"
+    exit 1
+  end
 
   JSON.parse(response.body)
 end
@@ -39,7 +51,7 @@ response = get_tasks
 if response["error"]
   puts "Ошибка при получении задач: #{response["error"]["message"]}"
 else
-  
+
   tasks = response["result"]
   results = tasks.map do |circles|
     calculate_bounding_box(circles)
